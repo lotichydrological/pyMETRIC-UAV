@@ -71,16 +71,12 @@ Batch_Data/*/Input/*.tif.aux.xml
 # ---- Validation harness results (regenerable) -------------------------------
 validation/results/
 
-# =============================================================================
-# OPTIONAL — decide per project. Uncomment to EXCLUDE; leave commented to TRACK.
-# =============================================================================
-
-# Rendered documentation (regenerable with `quarto render`). The source .qmd,
-# .bib, _quarto.yml, and the figures/ are always tracked. Uncomment to keep the
-# large rendered PDFs/HTML out of git history.
-# docs/*.pdf
-# docs/*.html
-
-# Doc-support data written by export_metrics.py (regenerable). Currently TRACKED
-# so the document renders without first running the export step.
-# docs/_fruita_metrics.json
+# ---- Documentation: track ONLY the rendered output documents ----------------
+# Everything under docs/ is ignored EXCEPT the top-level rendered .pdf / .html
+# files. The Quarto sources (.qmd), figure generators (.py), references.bib,
+# _quarto.yml, _fruita_metrics.json, and the figures/ folder are intentionally
+# NOT tracked. (The rendered docs embed the figures, so the published repo ships
+# the finished documents but not the means to rebuild them.)
+docs/*
+!docs/*.pdf
+!docs/*.html
