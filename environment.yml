@@ -1,0 +1,30 @@
+# Reproducible environment for the pyMETRIC-UAV notebook (pyMETRIC_Batch_Run.ipynb).
+#
+# One-time setup for a new user:
+#     conda env create -f environment.yml
+#     conda activate pymetric-uav
+#     jupyter lab          # (or: jupyter notebook)  then open pyMETRIC_Batch_Run.ipynb
+#
+# After that, the notebook needs no installation step — it loads the bundled
+# pyMETRIC/ package that ships in this folder (see the first cell). You do NOT
+# run `pip install` for pyMETRIC itself.
+#
+# Versions below are pinned to the stack this code was developed and validated
+# against (Python 3.10, GDAL 3.11 from conda-forge, pyTSEB 2.1). GDAL must come
+# from conda-forge, NOT pip.
+name: pymetric-uav
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - gdal=3.11.3
+  - numpy=2.2.*
+  - scipy=1.15.*
+  - pandas=2.3.*
+  - netCDF4=1.7.*
+  - matplotlib=3.10.*
+  - tqdm=4.67.*
+  - jupyterlab
+  - pip
+  - pip:
+      - pyTSEB==2.1

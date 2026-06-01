@@ -1,0 +1,327 @@
+# ============================================================================
+# pyMETRIC UAV Configuration File
+# ============================================================================
+#
+# Drop this template into a dataset folder under Batch_Data/, rename to
+# `config.txt`, and edit the sections below. The notebook reads it from the
+# folder that contains the multiband image.
+#
+# Quickstart for a new flight:
+#   1. Edit SECTION 1 - everything that is specific to this dataset
+#      (image, polygon files, dates, met values, endmember settings).
+#   2. Verify SECTION 2 - site coordinates, instrument heights, crop_type,
+#      reference surface.
+#   3. Leave SECTION 3 alone unless you know you need to change it.
+#
+# Paths can be relative (to this config file) or absolute.
+# ============================================================================
+
+model=pyMETRIC
+
+# ============================================================================
+#  SECTION 1 - FLIGHT INFO (REQUIRED - edit for every flight)
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+#  1.1  Input image 
+#
+#  Define the sensor band assignments and thermal units for the multi-band image
+# -----------------------------------------------------------------------------
+
+multiband_image = example_image.tif  # Multiband UAV image 
+red_band=3                           # indexed band for Red reflectance (~668 nm)
+nir_band=5                           # indexed band for NIR reflectance (~840 nm)
+thermal_band=6                       # indexed band for surface temperature
+thermal_units=C                      # C=Celsius, K=Kelvin
+
+# -----------------------------------------------------------------------------
+#  1.2  Date and time of acquisition
+#
+#  Notebook prints these back as a calendar date during preflight, so a DOY 
+#  typo is obvious.
+#
+#  Time:  Local standard time entered in decimal hour form (e.g. 2:30 PM = 14.5)
+# -----------------------------------------------------------------------------
+
+DOY=221                              # Day of year (1-366); 221 = Aug 9
+time=10.5                            # Decimal hours
+
+# -----------------------------------------------------------------------------
+#  1.3  Meteorology (instantaneous values at the time of the flight)
+#
+#  Single measurement at flight time, from a met station or flux tower
+# -----------------------------------------------------------------------------
+
+T_A1=26.03                           # Air temperature (units below)
+T_A1_units=C                         # C=Celsius, K=Kelvin
+u=2.15                               # Wind speed (m/s)
+ea=13.4                              # Water vapor pressure (millibars)
+S_dn=861.74                          # Incoming shortwave radiation (W/m2)
+p=1011                               # Atmospheric pressure (millibars)
+L_dn=                                # Incoming longwave radiation (W/m2); 
+                                     #  leave blank to estimate from T_A1+ea.
+
+# -----------------------------------------------------------------------------
+#  1.4  Polygon file paths
+# 
+#  Endmember zones: polygons labelled 'cold' (well-watered vegetation) and
+#  'hot' (dry bare soil). These polygons drive TWO independent computations: 
+#   1. NDVI calibration: median NDVI inside the cold zone sets NDVI_full; 
+#      median NDVI inside the hot zone sets NDVI_soil. 
+#      These feed Beer's-law derivation of LAI and FC.
+#   2. Endmember pixel search (in endmember_mode=zone): hot/cold pixel
+#      search is restricted to the same polygons.
+#  Enlarging the cold polygon raises NDVI_full AND broadens the cold-pixel
+#  search area. Keep polygons tight around representative wet/dry surfaces.
+#
+#  Zonal Polygons: plot polygons used for per-feature zonal statistics 
+#     (e.g. mean/median/SD of ETand fETr) per plot. Output file  written 
+#     to <SiteName>_Zonal_Stats.csv).
+#
+#  Input Mask: enter 0 to process all valid imate pixels. Otherwise, enter a or  
+#  path to a binary raster where a value of 1 = process, and 0 = skip
+#  -----------------------------------------------------------------------------
+
+endmember_zones=./Input/endmember_zones.gpkg   # Polygon file with 'cold' and 'hot' features
+
+zonal_polygons=./Input/study_plots.gpkg   # Polygon file for plot-level zonal statistics
+
+input_mask=0   
+
+# -----------------------------------------------------------------------------
+#  1.5  Endmember search
+#
+#  Method for picking the hot/cold anchor pixels that calibrate dT = a + b*Ts.
+#  Modes:
+#    auto       - search the full image automatically
+#    zone       - search inside the polygons set below (recommended for UAV)
+#    manual     - exact pixel locations (e.g. flux tower) - see Section 3.9
+#    prescribed - supply dT = a + b*Ts coefficients directly - see Section 3.9
+#
+#  Endmenber Search:  Algorithm used by `auto` and `zone` modes
+#    0 = CIMEC      (Allen 2013) - multi-step filter using NDVI/LST/albedo
+#    1 = ESA        (Bhattarai 2017) - exhaustive search with histograms
+#    2 = Min/Max    Percentile-based extremes (coldest 2% / hottest 2%) with
+#                   VI tie-break. 
+# -----------------------------------------------------------------------------
+
+endmember_mode=zone                  # auto, zone, manual, or prescribed
+endmember_search=2                   # 0=CIMEC, 1=ESA, 2=Min/Max
+
+# ============================================================================
+#  SECTION 2 - SITE INFO  (REQUIRED)
+#
+#  Crop Type: preset must match a block prefix in Section 3.1.
+#  Built-in options include alfalfa, corn, wheat, pasture, orchard.
+#
+#  Reference Type: reference for ET crop height. 
+#  Picks Cn/Cd (Penman-Monteith constants) and the G/Rn ratio when G_form=4. 
+#     tall  -> alfalfa (Cn=66, Cd=0.25, G/Rn=G_tall)   -- default
+#     short -> grass   (Cn=37, Cd=0.24, G/Rn=G_short)
+#
+# ============================================================================
+
+lat=39.16736653032889                # Site latitude  (decimal degrees)
+lon=-108.71668943835509              # Site longitude (decimal degrees)
+alt=1400                             # Elevation above sea level (meters)
+
+stdlon=-105.0  # Standard longitude of the LOCAL TIME ZONE (e.g. -105 for Mountain)
+
+z_T=2                                # Air temperature sensor height
+z_u=2                                # Wind speed sensor height
+
+crop_type=alfalfa                    # Crop type (see Section 3.1)
+
+reference_type=tall                  # Reference ET crop height (alfalfa = tall)
+
+# ============================================================================
+#  SECTION 3 - ADVANCED SETTINGS
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+#  3.1  Crop presets
+#
+#   Each preset block defines the canopy parameters for one crop type. The
+#   active preset is chosen by `crop_type` in Section 2; entries that don't
+#   match the active prefix are ignored.
+#
+#   A line like `alfalfa.k_ext=0.6` becomes available as `k_ext=0.6` to the
+#   rest of the model when `crop_type=alfalfa`. To add a new crop, copy any
+#   block, change the prefix, and set `crop_type=<your name>` 
+#
+#   Parameters defined in each preset:
+#     k_ext       Canopy light extinction coefficient (Beer's law).
+#                 Lower for vertical leaves (corn ~0.45); higher for
+#                 horizontal leaves (alfalfa ~0.60-0.65).
+#     h_C         Canopy height (m)
+#     landcover   IGBP class: 12=Crop, 10=Grass, 6=Shrub_C, 7=Shrub_O,
+#                 1=Conifer_E, 4=Broadleaf_D, 5=Forest_mixed,
+#                 9=Savanna, 14=Crop_Mosaic
+#     NDVI_full   NDVI at full vegetation cover (overridden by zone
+#                 calibration when endmember_zones is set)
+#     rho_vis_C   Leaf visible/PAR reflectance
+#     tau_vis_C   Leaf visible/PAR transmittance
+#     rho_nir_C   Leaf NIR reflectance
+#     tau_nir_C   Leaf NIR transmittance
+#
+#   Values are starting points; override for your cultivar / growth stage
+#   if you have field measurements.
+# -----------------------------------------------------------------------------
+
+# --- ALFALFA  (well-watered, mature) ----
+alfalfa.k_ext=0.6
+alfalfa.h_C=0.5
+alfalfa.landcover=12
+alfalfa.NDVI_full=0.90
+alfalfa.rho_vis_C=0.07
+alfalfa.tau_vis_C=0.08
+alfalfa.rho_nir_C=0.32
+alfalfa.tau_nir_C=0.33
+
+# --- CORN / MAIZE  (midseason) ----
+corn.k_ext=0.45
+corn.h_C=2.0
+corn.landcover=12
+corn.NDVI_full=0.92
+corn.rho_vis_C=0.08
+corn.tau_vis_C=0.05
+corn.rho_nir_C=0.46
+corn.tau_nir_C=0.31
+
+# --- WHEAT  (winter wheat, jointing-to-anthesis) ---
+wheat.k_ext=0.50
+wheat.h_C=0.9
+wheat.landcover=12
+wheat.NDVI_full=0.90
+wheat.rho_vis_C=0.10
+wheat.tau_vis_C=0.07
+wheat.rho_nir_C=0.40
+wheat.tau_nir_C=0.30
+
+# --- PASTURE / GRASS HAY ---
+pasture.k_ext=0.55
+pasture.h_C=0.15
+pasture.landcover=10
+pasture.NDVI_full=0.85
+pasture.rho_vis_C=0.10
+pasture.tau_vis_C=0.06
+pasture.rho_nir_C=0.42
+pasture.tau_nir_C=0.35
+
+# --- ORCHARD / DECIDUOUS TREE CROP  (peach, almond, apple) ---
+orchard.k_ext=0.45
+orchard.h_C=3.5
+orchard.landcover=4
+orchard.NDVI_full=0.85
+orchard.rho_vis_C=0.10
+orchard.tau_vis_C=0.04
+orchard.rho_nir_C=0.40
+orchard.tau_nir_C=0.20
+
+# -----------------------------------------------------------------------------
+#  3.2  Site-level canopy / leaf parameters (apply to all crops)
+# -----------------------------------------------------------------------------
+
+w_C=1                                # Canopy width:height ratio
+x_LAD=1                              # Leaf angle: 1=spherical, 0=vertical, inf=horizontal
+emis_C=0.98                          # Leaf emissivity
+NDVI_soil=0.15                       # NDVI of bare soil at the site (overridden by 'zone' calibration)
+LAI_max=8.0                          # Upper clamp on derived LAI
+
+# -----------------------------------------------------------------------------
+#  3.3  Soil heat flux
+#
+#   G Form: Soil heat flux method. 
+#     0 = Constant value (W/m2). Use G_constant.
+#     1 = Fixed ratio of Rn. Use G_ratio.
+#     2 = Santanello & Friedl diurnal model. Use G_amp, G_phase, G_shape.
+#     4 = ASCE PET ratio (default). G/Rn = G_tall (alfalfa) or G_short (grass),
+#       picked by reference_type in Section 2.
+#     5 = Allen 2007 empirical. G/Rn varies per pixel from surface temp, albedo,
+#       and NDVI. RECOMMENDED for mixed-cover UAV scenes (e.g. orchard + pasture).
+#
+# -----------------------------------------------------------------------------
+
+G_form=4                             # Selected soil heat flux method
+
+G_tall=0.04                          # G/Rn for alfalfa reference (tall)
+G_short=0.10                         # G/Rn for grass reference   (short)
+
+G_constant=0                         # Constant G (W/m2); 0 ignores G
+G_ratio=0.35                         # G/Rn ratio applied uniformly
+G_amp=35                             # Diurnal G amplitude (W/m2)
+G_phase=3.5                          # Phase shift - hour of peak G after solar noon
+G_shape=2.0                          # Shape parameter for diurnal curve width
+
+# -----------------------------------------------------------------------------
+#  3.4  Quality control
+# -----------------------------------------------------------------------------
+
+min_lst_range=3.0        # Min LST range (K) between endmembers before issuing a warning
+cv_window_meters=5.0     # Spatial homogeneity filter window (m); auto-scaled to pixels by resolution
+
+# -----------------------------------------------------------------------------
+#  3.5  Soil spectral properties (site/soil-dependent)
+# -----------------------------------------------------------------------------
+#
+emis_S=0.95                          # Soil emissivity
+rho_vis_S=0.15                       # Soil visible/PAR reflectance
+rho_nir_S=0.25                       # Soil NIR reflectance
+
+# -----------------------------------------------------------------------------
+#  3.6  Aerodynamic resistance
+# -----------------------------------------------------------------------------
+
+use_METRIC_resistance=1              # 0 = Kustas & Norman 1999; 1 = Allen 1998 (METRIC standard)
+z0_soil=0.01                         # Bare soil roughness length (meters)
+
+# -----------------------------------------------------------------------------
+#  3.7  Optional file path overrides
+#
+# Pre-computed input rasters: only set these if you skip the multiband
+# image processing step. Otherwise the notebook writes them into Input/ for you and
+# the model auto-discovers them.
+#
+# Primary output file auto-generated under Output/<folder_name>_METRIC.tif.
+# -----------------------------------------------------------------------------
+
+# T_R1=./Input/TRAD.tif              # Surface temperature (Kelvin)
+# VI=./Input/NDVI.tif                # Vegetation index
+# LAI=./Input/LAI_NDVI.tif           # Leaf area index (m2/m2)
+# f_c=./Input/FC.tif                 # Fractional cover (0-1)
+
+# output_file=./Output/my_output.tif
+
+# -----------------------------------------------------------------------------
+#  3.8  Hot pixel ETrF tuning (Allen 2013 Eq. 5)
+#
+# The dT calibration anchors at the hot pixel's reference-ET fraction (ETrF).
+# Default behaviour blends cold-pixel ETrF (~1.05) and ETrF_bare via the hot
+# pixel's NDVI:  ETrF_hot(pixel) = VI*ETrF_cold + (1-VI)*ETrF_bare
+#
+# ETrF_bare - ETrF at fully bare soil (0-1, or raster path). 0 = "hot pixel
+#             is truly dry" (default). Raise to ~0.05-0.10 if recent rainfall
+#             or dew has left residual evaporation.
+# hot_ETrF  - overrides the hot pixel's ETrF directly (0-1), bypassing the VI
+#             blend. Use when measured at a flux tower at the hot pixel.
+# -----------------------------------------------------------------------------
+
+ETrF_bare=0                          # ETrF at fully bare soil (0-1, or raster path)
+# hot_ETrF=0.05                      # Direct override of hot-pixel ETrF (0-1)
+
+# -----------------------------------------------------------------------------
+#  3.9  Alternate endmember specifications 
+#
+#  Uncomment the lines below and provide values if using the `manual` or `prescribed`
+#  endmember selection modes
+# -----------------------------------------------------------------------------
+
+# endmember_zone_field=zone          # Attribute field name (default: 'zone')
+# cold_zone=                         # Bounding-box fallback (xmin,ymin,xmax,ymax)
+# hot_zone=
+# cold_pixel_rc=                     # Manual mode: row,col in the image
+# hot_pixel_rc=
+# cold_pixel_xy=                     # Manual mode: x,y in the image CRS
+# hot_pixel_xy=
+# prescribed_dT_a=                   # Prescribed mode: dT intercept (K)
+# prescribed_dT_b=                   # Prescribed mode: dT slope (unitless)

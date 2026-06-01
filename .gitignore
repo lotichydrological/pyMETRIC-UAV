@@ -1,0 +1,86 @@
+# =============================================================================
+# .gitignore for pyMETRIC-UAV
+#
+# Goal: keep source (code, docs, configs, example INPUTS) under version control;
+# exclude OS/editor junk, build artifacts, Python caches, and regenerable run
+# OUTPUTS. A few lines are commented and marked OPTIONAL — flip them depending
+# on whether you want rendered docs / example results tracked.
+# =============================================================================
+
+# ---- Tooling / editor config (not for publication) --------------------------
+.claude/
+
+# ---- macOS / OS junk --------------------------------------------------------
+.DS_Store
+**/.DS_Store
+.Rapp.history
+*.history
+
+# ---- Python caches / build --------------------------------------------------
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+
+# ---- Jupyter ----------------------------------------------------------------
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# ---- Quarto build artifacts -------------------------------------------------
+# .quarto/ is a build cache; *_files/ are Quarto's per-document support assets.
+docs/.quarto/
+/.quarto/
+docs/*_files/
+
+# ---- Conda / virtualenv (if a user makes one inside the project) ------------
+.conda/
+.venv/
+env/
+venv/
+
+# ---- Large source imagery (exceeds GitHub limits) ---------------------------
+# The full-resolution multiband image (~2.5 GB) and the resampled copy (~91 MB)
+# are too large for GitHub (100 MB/file limit). The demo runs on the small
+# clipped image (example_image_clipped.tif, ~14 MB), which IS tracked, and is
+# the file referenced by Fruita_Example/config.txt. Ignore everything else.
+Batch_Data/*/example_image.tif
+Batch_Data/*/example_image_resampled.tif
+Batch_Data/*/*.tif.aux.xml
+# Belt-and-suspenders: ignore any tracked file over GitHub's hard limit is not
+# something .gitignore can do by size; if you add other large rasters, list them
+# here or use Git LFS.
+
+# ---- Regenerable model run OUTPUTS ------------------------------------------
+# The model writes results into each dataset's Output/ folder. These are
+# reproducible by re-running the notebook, and are bulky (multi-MB rasters).
+# The small clipped INPUT image and the polygon files ARE tracked — a new user
+# needs them to run the demo.
+Batch_Data/*/Output/
+
+# Derived input rasters are regenerated from the multiband image on each run.
+# Comment these two lines out if you prefer to ship the derived rasters too.
+Batch_Data/*/Input/NDVI.tif
+Batch_Data/*/Input/LAI_NDVI.tif
+Batch_Data/*/Input/FC.tif
+Batch_Data/*/Input/TRAD.tif
+Batch_Data/*/Input/*.tif.aux.xml
+
+# ---- Validation harness results (regenerable) -------------------------------
+validation/results/
+
+# =============================================================================
+# OPTIONAL — decide per project. Uncomment to EXCLUDE; leave commented to TRACK.
+# =============================================================================
+
+# Rendered documentation (regenerable with `quarto render`). The source .qmd,
+# .bib, _quarto.yml, and the figures/ are always tracked. Uncomment to keep the
+# large rendered PDFs/HTML out of git history.
+# docs/*.pdf
+# docs/*.html
+
+# Doc-support data written by export_metrics.py (regenerable). Currently TRACKED
+# so the document renders without first running the export step.
+# docs/_fruita_metrics.json

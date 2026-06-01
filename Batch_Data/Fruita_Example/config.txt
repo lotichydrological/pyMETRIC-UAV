@@ -1,0 +1,209 @@
+# ============================================================================
+# Fruita Example — pyMETRIC Configuration
+# ============================================================================
+# Alfalfa field near Fruita, Colorado. Flight on Aug 9 (DOY 221) at 10:30 AM
+# local Mountain time. Uses the alfalfa crop preset.
+#
+# Sections are sorted by edit frequency:
+#   1. PER-FLIGHT   — every flight (image, polygons, dates, met, endmembers)
+#   2. PER-SITE     — when you move to a new location
+#   3. CROP PRESETS — canned canopy parameters per crop (rarely edited)
+#   4. ADVANCED     — model defaults & secondary settings (rarely change)
+# ============================================================================
+
+model=pyMETRIC
+
+
+# ============================================================================
+#  SECTION 1 — PER-FLIGHT  (REQUIRED — edit for every flight)
+# ============================================================================
+
+# --- Input image + sensor band assignments ---------------------------------
+
+multiband_image=example_image_clipped.tif
+
+red_band=3                           # 1-indexed band for Red reflectance (~668 nm)
+nir_band=5                           # 1-indexed band for NIR reflectance (~840 nm)
+thermal_band=6                       # 1-indexed band for surface temperature
+thermal_units=C                      # C=Celsius, K=Kelvin
+
+# --- Polygon files ---------------------------------------------------------
+# DUAL PURPOSE: endmember_zones polygons drive both NDVI calibration in the
+# notebook (median NDVI in cold/hot zones sets NDVI_full / NDVI_soil) AND
+# the hot/cold pixel search when endmember_mode=zone. Keep them tight around
+# representative wet/dry surfaces.
+
+endmember_zones=./Input/endmember_zones.gpkg
+
+# Per-plot zonal statistics output uses these polygons.
+zonal_polygons=./Input/study_plots.gpkg
+
+# Processing mask: 0 = use every valid pixel; or a path to a binary raster.
+input_mask=0
+
+# --- Date and time of acquisition ------------------------------------------
+
+DOY=221                              # Aug 9
+time=10.5                            # 10:30 AM local standard time
+
+# --- Meteorology (instantaneous values at the time of the flight) ----------
+
+T_A1=27.38                           # Air temperature (units below)
+T_A1_units=C                         # C=Celsius, K=Kelvin
+u=1.63                               # Wind speed (m/s)
+ea=7.2                               # Water vapor pressure (millibars)
+S_dn=528.25                          # Incoming shortwave radiation (W/m2)
+p=1019                               # Atmospheric pressure (millibars)
+L_dn=                                # Blank: estimate from T_A1 + ea
+
+# --- Endmember search ------------------------------------------------------
+endmember_mode=zone                  # auto, zone, manual, or prescribed
+endmember_search=2                   # 0=CIMEC, 1=ESA, 2=Min/Max (percentile-based)
+
+# --- Hot pixel ETrF tuning -------------------------------------------------
+
+ETrF_bare=0                          # ETrF at fully bare soil (0-1, or raster path)
+# hot_ETrF=0.05                      # Direct override of hot-pixel ETrF (0-1)
+
+# --- Alternate endmember specifications (used only by the matching mode) ---
+# endmember_zone_field=zone          # Attribute field name (default: 'zone')
+# cold_zone=                         # Bounding-box fallback (xmin,ymin,xmax,ymax)
+# hot_zone=
+# cold_pixel_rc=                     # Manual mode: row,col
+# hot_pixel_rc=
+# cold_pixel_xy=                     # Manual mode: x,y (image CRS)
+# hot_pixel_xy=
+# prescribed_dT_a=                   # Prescribed mode: dT intercept (K)
+# prescribed_dT_b=                   # Prescribed mode: dT slope (unitless)
+
+
+# ============================================================================
+#  SECTION 2 — PER-SITE  (REQUIRED — edit when you move sites)
+# ============================================================================
+
+lat=39.16736653032889                # Fruita, CO
+lon=-108.71668943835509
+alt=1404                             # meters above sea level
+stdlon=-105.0                        # US Mountain time zone meridian
+z_T=2                                # Air temperature sensor height (m AGL)
+z_u=2                                # Wind speed sensor height (m AGL)
+
+# Active crop preset (must match a block prefix in Section 3).
+crop_type=alfalfa
+
+# Reference ET surface: tall=alfalfa (ETr), short=grass (ETo).
+reference_type=tall
+
+
+# ============================================================================
+#  SECTION 3 — CROP PRESETS  (canned canopy parameters per crop)
+# ============================================================================
+#
+# Each preset block defines the canopy parameters for one crop type. The
+# active preset is chosen by `crop_type` in Section 2; entries that don't
+# match the active prefix are ignored.
+#
+# A line like `alfalfa.k_ext=0.6` becomes available as `k_ext=0.6` to the
+# rest of the model when `crop_type=alfalfa`. To add a new crop, copy any
+# block, change the prefix, and set `crop_type=<your name>` in Section 2.
+#
+# Parameters defined in each preset:
+#   k_ext       Canopy light extinction coefficient (Beer's law)
+#   h_C         Canopy height (m)
+#   landcover   IGBP class: 12=Crop, 10=Grass, 4=Broadleaf_D, etc.
+#   NDVI_full   NDVI at full vegetation cover (overridden by zone
+#               calibration when endmember_zones is set)
+#   rho_vis_C   Leaf visible/PAR reflectance
+#   tau_vis_C   Leaf visible/PAR transmittance
+#   rho_nir_C   Leaf NIR reflectance
+#   tau_nir_C   Leaf NIR transmittance
+
+# --- ALFALFA  (well-watered, mature) ---------------------------------------
+alfalfa.k_ext=0.6
+alfalfa.h_C=0.4
+alfalfa.landcover=12
+alfalfa.NDVI_full=0.90
+alfalfa.rho_vis_C=0.07
+alfalfa.tau_vis_C=0.08
+alfalfa.rho_nir_C=0.32
+alfalfa.tau_nir_C=0.33
+
+# --- CORN / MAIZE  (midseason) ---------------------------------------------
+corn.k_ext=0.45
+corn.h_C=2.0
+corn.landcover=12
+corn.NDVI_full=0.92
+corn.rho_vis_C=0.08
+corn.tau_vis_C=0.05
+corn.rho_nir_C=0.46
+corn.tau_nir_C=0.31
+
+# --- WHEAT  (winter wheat, jointing-to-anthesis) ---------------------------
+wheat.k_ext=0.50
+wheat.h_C=0.9
+wheat.landcover=12
+wheat.NDVI_full=0.90
+wheat.rho_vis_C=0.10
+wheat.tau_vis_C=0.07
+wheat.rho_nir_C=0.40
+wheat.tau_nir_C=0.30
+
+# --- PASTURE / GRASS HAY ---------------------------------------------------
+pasture.k_ext=0.55
+pasture.h_C=0.15
+pasture.landcover=10
+pasture.NDVI_full=0.85
+pasture.rho_vis_C=0.10
+pasture.tau_vis_C=0.06
+pasture.rho_nir_C=0.42
+pasture.tau_nir_C=0.35
+
+# --- ORCHARD / DECIDUOUS TREE CROP  (peach, almond, apple) -----------------
+orchard.k_ext=0.45
+orchard.h_C=3.5
+orchard.landcover=4
+orchard.NDVI_full=0.85
+orchard.rho_vis_C=0.10
+orchard.tau_vis_C=0.04
+orchard.rho_nir_C=0.40
+orchard.tau_nir_C=0.20
+
+
+# ============================================================================
+#  SECTION 4 — ADVANCED  (rarely changed — defaults below are sensible)
+# ============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  4.1  Site-level canopy / leaf parameters (apply to all crops)
+# ─────────────────────────────────────────────────────────────────────────────
+w_C=1                                # Canopy width:height ratio
+x_LAD=1                              # Leaf angle: 1=spherical
+emis_C=0.98                          # Leaf emissivity
+NDVI_soil=0.15                       # NDVI of bare soil at this site (overridden by zone calibration)
+LAI_max=8.0                          # Upper clamp on derived LAI
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  4.2  Soil heat flux
+# ─────────────────────────────────────────────────────────────────────────────
+G_form=4                             # 0=const, 1=ratio, 2=diurnal, 4=ASCE, 5=Allen empirical
+G_tall=0.04                          # G/Rn for alfalfa reference (used when reference_type=tall)
+G_short=0.10                         # G/Rn for grass reference   (used when reference_type=short)
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  4.3  Quality control
+# ─────────────────────────────────────────────────────────────────────────────
+min_lst_range=3.0                    # Min LST range (K) between endmembers before warning
+cv_window_meters=5.0                 # Spatial homogeneity filter window (m); auto-scaled to pixels
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  4.4  Soil spectral properties
+# ─────────────────────────────────────────────────────────────────────────────
+emis_S=0.95                          # Soil emissivity
+rho_vis_S=0.15                       # Soil visible/PAR reflectance
+rho_nir_S=0.25                       # Soil NIR reflectance
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  4.5  Aerodynamic resistance
+# ─────────────────────────────────────────────────────────────────────────────
+use_METRIC_resistance=1              # 0=Kustas & Norman 1999, 1=Allen 1998 (METRIC standard)
+z0_soil=0.01                         # Bare soil roughness length (m)

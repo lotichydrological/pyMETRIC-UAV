@@ -1,0 +1,261 @@
+---
+title: "pyMETRIC-UAV: Getting Started"
+subtitle: "Initial setup and a working example"
+date: today
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 2
+    number-sections: true
+  pdf:
+    documentclass: article
+    geometry:
+      - margin=1in
+    fontsize: 11pt
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    colorlinks: true
+---
+
+This guide walks a first-time user from a clean computer to a finished
+evapotranspiration (ET) map, using the bundled **Fruita_Example** dataset.
+It assumes no prior Python experience: you create the software environment
+once, then open one notebook and run it top to bottom.
+
+For the science behind the model, the configuration reference, and the
+validation against the reference `WSWUP/pyMETRIC` code, see the companion `pyMETRIC_UAV_overview.pdf`
+document.
+
+# What you need before starting
+
+- The **project folder** (the directory that contains `pyMETRIC/`,
+  `pyMETRIC_Batch_Run.ipynb`, `environment.yml`, and `Batch_Data/`). Keep this
+  folder intact --- the notebook loads its model code directly from the
+  bundled `pyMETRIC/` subfolder.
+- **Miniconda or Anaconda** installed. If you do not have it, install Miniconda
+  from <https://docs.conda.io/en/latest/miniconda.html>. This is the only
+  software you install by hand.
+
+You will use a terminal **once** to create the environment. After that,
+everything happens inside the notebook.
+
+# One-time environment setup
+
+The project ships an `environment.yml` that pins every package to the versions
+the model was developed and validated against (Python 3.10, GDAL 3.11, pyTSEB
+2.1, and the scientific stack). Creating the environment from this file is the
+only setup step.
+
+Open a terminal (on Windows, use the **Anaconda Prompt**), change the directory to the
+project folder where `pymetric-uav` is located, and run:
+
+```bash
+conda env create -f environment.yml
+conda activate pymetric-uav
+```
+
+The first command downloads and installs everything; it can take several
+minutes. The second activates the environment so the next commands use it.
+
+> **Note.** GDAL (the geospatial library) is installed from `conda-forge` by
+> the environment file. Do **not** try to install GDAL with `pip` --- mixing
+> the two is the most common cause of a broken environment.
+
+Then launch Jupyter from the same terminal:
+
+```bash
+jupyter lab
+```
+
+This opens Jupyter in your web browser. In the file panel on the left,
+double-click **`pyMETRIC_Batch_Run.ipynb`** to open the notebook.
+
+> **You only do this once.** After the environment exists, future sessions are
+> just: `conda activate pymetric-uav`, then `jupyter lab`. You do not recreate
+> the environment or install anything again.
+
+# Confirming the example dataset is in place
+
+The notebook processes whatever dataset folders it finds in `Batch_Data/`. The
+project ships with one example ready to go:
+
+```
+Batch_Data/
+  Fruita_Example/
+    config.txt                 site, meteorology, and band assignments
+    example_image_clipped.tif  the multiband UAV image (reflectance + thermal)
+    Input/                     endmember / study-plot polygons (and derived
+                               rasters, created on the first run)
+    Output/                    results land here
+```
+
+`config.txt` is the file you edit for your own flights. For Fruita
+it is already filled in. The values that matter most are the acquisition time
+and the weather at the time of the UAV flight(s):
+
+| Setting | Value | Meaning |
+|:--------|:------|:--------|
+| `DOY` / `time` | 221 / 10.5 | Aug 9, 10:30 AM local standard time |
+| `T_A1` | 27.38 °C | air temperature at the flight |
+| `u` | 1.63 m/s | wind speed |
+| `S_dn` | 528.25 W/m² | incoming shortwave radiation |
+| `crop_type` | `alfalfa` | selects the alfalfa canopy preset |
+| `reference_type` | `tall` | alfalfa (ETr) reference surface |
+| `endmember_mode` | `zone` | restrict hot/cold search to the drawn polygons |
+| `endmember_search` | `2` | Min/Max (percentile-based) selector |
+
+# Running the notebook
+
+The notebook contains six cells. Run them in order (**Shift+Enter** runs the current
+cell and moves to the next, or use *Run → Run All Cells*). Each cell print a log and a record 
+of any generated output, so you can confirm progress as you go.
+
+## Setup
+
+The first cell imports the libraries and loads the model code from the bundled
+`pyMETRIC/` folder. A successful run prints something like:
+
+```
+pyMETRIC-batch v4.0.0
+Using bundled pyMETRIC: .../pyMETRIC-uav/pyMETRIC
+Base directory:  .../pyMETRIC-uav
+Batch directory: .../pyMETRIC-uav/Batch_Data (exists: True)
+```
+
+The line **`Using bundled pyMETRIC`**  confirms the
+notebook is running this folder's model code, not some other copy of pyMETRIC that might be
+installed on the machine. If instead the cell stops with an error saying it is
+"NOT running the bundled code," the project folder layout has been disturbed ---
+make sure `pyMETRIC/` sits next to the notebook, then restart the kernel
+(*Kernel → Restart Kernel*) and run this cell first.
+
+## Pre-flight
+
+The second cell scans `Batch_Data/`, checks each dataset's configuration, and
+reports which are ready. For the Fruita_Example, you should see it marked **READY**. You should also see a
+config sanity check that echoes the acquisition date in plain English (and warns
+if any met value looks unusual):
+
+```
+=== Preflight Check ===
+  [Fruita_Example] READY — multiband: example_image_clipped.tif (config: config.txt)
+
+1/1 datasets ready for processing.
+
+=== Config sanity check ===
+  Acquisition: DOY 221, 10.50 hr -> Aug 9 at 10:30 (local standard time)
+```
+
+Nothing is processed yet --- this is the safety check.
+
+## Run
+
+The third cell does the actual work. For each ready dataset, this cell:
+
+1. Derives NDVI, leaf area index (LAI), fractional cover, and surface
+   temperature (TRAD) from the multiband image and exports each surface to the `Input/` directory;
+2. Runs the METRIC energy-balance model;
+3. Converts latent heat to instantaneous ET (mm/hr);
+4. Computes the ASCE reference ET for the scene; and
+5. Computes per-plot zonal statistics from the study-plot polygons.
+
+A plot is provided that indicates the two anchor (endmember) pixels and
+the resulting near-surface temperature-gradient line. For the Fruita_Example,
+the run reports:
+
+```
+Cold pixel at (554, 376): 293.80 K, 0.929 VI
+Hot pixel  at (28, 299):  321.85 K, 0.118 VI
+Endmember quality OK: LST range = 28.0 K, cold VI = 0.93, hot VI = 0.12
+Calibrated dT: a=-27.740023, b=0.095559
+  ET mean = 0.2279 mm/hr
+  ETr = 0.5267 mm/hr
+```
+
+This output indicates selection of a well-watered alfalfa **cold** pixel near 294 K
+and a hot bare-soil pixel near 322 K, The image-mean
+instantaneous ET is **0.228 mm/hr**, and the ASCE alfalfa reference ET is
+**0.527 mm/hr**. The scene averages about 43% of reference, consistent
+with a mix of irrigated alfalfa and bare ground.
+
+## Summary
+
+The fourth cell prints a table with one row per dataset in the `Batch/` directory. Each row
+contains values for processing status, mean ET, reference ET (ETr), the ET / ETr ratio, and the number of study plots. For
+the Fruita_Example, it reads:
+
+```
+=== Batch Summary ===
+       Dataset  Status  Mean ET (mm/hr)  Ref ETr (mm/hr)  ET / ETr  Plots
+Fruita_Example SUCCESS           0.2279           0.5267     0.433     24
+```
+
+This table provides a quick "did it work and are the numbers sensible" check.
+
+## Diagnostics (optional)
+
+The fifth cell prints per-raster statistics (min/max/mean/std and NaN counts)
+for the derived inputs. These outputs are useful if a result looks off and you want to see
+whether NDVI, LAI, and TRAD came out in a plausible range. For the Fruita_Example, TRAD
+runs between 293--330 K, NDVI is between 0.03--0.94, and LAI is between 0--7.7. Each includes roughly 6.5% of
+pixels masked as no-data.
+
+## Sensitivity (optional)
+
+The sixth cell re-runs the scene under several endmember-selection strategies
+(Min/Max, CIMEC, ESA; with and without the zone polygons) and writes a small
+table comparing the image-mean ET each one produces. It quantifies how much the
+answer depends on how the hot/cold pixels are selected. For the Fruita_Example, the five
+strategies span roughly 0.18--0.24 mm/hr. This cell is optional and takes longer to run
+because it processes each scene several times.
+
+# What you get
+
+After a successful run, `Batch_Data/Fruita_Example/Output/` contains:
+
+| File | Contents |
+|:-----|:---------|
+| `Fruita_Example_METRIC.tif` | 4-band raster: net radiation $R_n$, sensible heat $H$, latent heat $LE$, soil heat flux $G$ (all W/m²) |
+| `Fruita_Example_ET_mm_hour.tif` | instantaneous ET (mm/hr) --- the headline map |
+| `Fruita_Example_METRIC_ancillary.tif` | supporting bands (aerodynamic resistance, reference ET, ET fraction, quality flag, ...) |
+| `Fruita_Example_Penman_ET.csv` | the scene's ASCE reference ET |
+| `Fruita_Example_Zonal_Stats.csv` | per-study-plot ET and ET-fraction statistics |
+| `Fruita_Example_log.txt` | a full text log of the run |
+
+The ET map and the per-plot CSV are usually what you came for. Open the
+`*_ET_mm_hour.tif` in any GIS (QGIS, ArcGIS) to view the ET map; open the
+`*_Zonal_Stats.csv` in a spreadsheet.
+
+# Running your own flight
+
+To process your own UAV scene instead of the Fruita_Example:
+
+1. Make a new folder inside `Batch_Data/` (e.g. `Batch_Data/MyField/`).
+2. Put your multiband image in it and copy `config_template.txt` to
+   `MyField/config.txt`. The configuration file is documented in full in the companion overview
+   (*Configuration* section); start from the annotated `config_template.txt` and
+   change one section at a time.
+3. Edit `config.txt`. At minimum, edit the band assignments, the acquisition
+   `DOY`/`time`, the four met values (`T_A1`, `u`, `ea`, `S_dn`), the site
+   `lat`/`lon`/`alt`, and the `crop_type`. The template is annotated section by
+   section.
+4. (Optional) Provide hot/cold zone polygons and study-plot polygons in an
+   `Input/` subfolder, and set `endmember_mode=zone`.
+5. Run the notebook exactly as above. It will pick up every ready dataset in
+   `Batch_Data/`, including the Fruita_Example and any additional sets you added. 
+6. Once you are satisfied with the model results from one or more datasets, move those 
+   directories to a different location (e.g. `Batch_Data/MyField/` → `Processed_Data/MyField/`) so that the model does
+   reprocess them each time you add a new dataset. 
+
+
+# Troubleshooting
+
+| Symptom | Likely cause / fix |
+|:--------|:-------------------|
+| Setup cell errors: "NOT running the bundled code" | `pyMETRIC/` is not next to the notebook. Restore the folder layout; restart the kernel; run the Setup cell first. |
+| `conda env create` fails | Make sure you ran it from the project folder (where `environment.yml` lives) and that conda is installed. Re-run; transient download failures are common. |
+| GDAL / `osgeo` import error | The environment did not build correctly. Recreate it from `environment.yml`; do not `pip install gdal`. |
+| Pre-flight marks a dataset NOT READY | A required file or `config.txt` key is missing; the preflight message names which one. |
+| ET map is mostly zero or NaN | Check the Diagnostics cell --- usually a bad band assignment (wrong red/NIR/thermal band number) or out-of-range surface temperatures. |
